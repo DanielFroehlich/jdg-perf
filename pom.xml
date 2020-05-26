@@ -10,7 +10,21 @@
 
   <properties>
   <version.infinispan>10.1.5.Final-redhat-00001</version.infinispan>
+   <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 </properties>
+
+<build>
+<plugins>
+  <plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-compiler-plugin</artifactId>
+    <version>3.8.0</version>
+    <configuration>
+        <release>11</release>
+    </configuration>
+</plugin>
+</plugins>
+</build>
 
   <dependencies>
     <dependency>
@@ -26,4 +40,5 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+
 </project>

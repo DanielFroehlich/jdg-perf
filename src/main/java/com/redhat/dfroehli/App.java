@@ -115,6 +115,15 @@ public class App {
     public static void main(String[] args) throws Exception {
         String createStr = System.getenv("ENTRIES_CREATE");
         String dumpStr = System.getenv("ENTRIES_DUMP");
+        if (createStr== null || createStr.length()==0) {
+            createStr = "true";
+        }
+        if (dumpStr== null || dumpStr.length()==0) {
+            dumpStr = "true";
+        }
+
+
+
         boolean create = Boolean.parseBoolean(createStr);
         boolean dump = Boolean.parseBoolean(dumpStr);
 
