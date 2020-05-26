@@ -28,15 +28,26 @@ public class App {
     private RemoteCache<String, String> cache;
 
     public void connectToCache() {
+
+        String servers = System.getenv("JDG_SERVER");
+        String cacheName = System.getenv("JDG_CACHE");
+        if (servers== null || servers.length()==0) {
+            servers = "localhost:11222";
+        }
+        if (cacheName== null || cacheName.length()==0) {
+            cacheName = "FTS";
+        }
+
         org.infinispan.client.hotrod.configuration.ConfigurationBuilder cb = new org.infinispan.client.hotrod.configuration.ConfigurationBuilder();
         cb.marshaller(new org.infinispan.commons.marshall.ProtoStreamMarshaller()).statistics().enable()
-                .jmxDomain("org.example").addServer().host("127.0.0.1").port(11222);
+                .jmxDomain("org.example");
+        cb.addServers(servers);
 
         RemoteCacheManager rmc = new RemoteCacheManager(cb.build(), true);
 
-        cache = rmc.getCache("FTS");
+        cache = rmc.getCache(cacheName);
         if (cache == null) {
-            throw new RuntimeException("Cache >FTS< not found");
+            throw new RuntimeException("Cache >"+cacheName+"< not found");
         }
     }
 
@@ -44,58 +55,83 @@ public class App {
         Rtu val = new Rtu();
         Random rnd = new Random();
 
-        long numValues = 100000;
+        String numEntriesStr = System.getenv("NUM_ENTRIES");
+        if (numEntriesStr== null || numEntriesStr.length()==0) {
+            numEntriesStr = "500000";
+        }
+
+        long numValues = Long.parseLong(numEntriesStr);
         long ts_start = System.currentTimeMillis();
         val.linuxTimestamp = System.currentTimeMillis();
         val.qualityCode = rnd.nextInt(256);
         val.value = rnd.nextDouble();
         // ToDO: use proto buf marshalling:
-        String csv = val.rtuId + ";" + val.linuxTimestamp + ";" + val.qualityCode + ";" + val.value;
 
         for (int i = 0; i < numValues; i++) {
             // val.rtuId = "RES_LINE$I_FROM_KA$"+String.format("%06d" , i);
             val.rtuId = "RES_LINE$I_FROM_KA$" + i;
-
+            val.linuxTimestamp = System.currentTimeMillis();
+            val.qualityCode = rnd.nextInt(256);
+            val.value = rnd.nextDouble();
+            String csv = val.rtuId + ";" + val.linuxTimestamp + ";" + val.qualityCode + ";" + val.value;
+    
             cache.put(val.rtuId, csv);
 
-            if (i % 10000 == 0) {
+            if (i % 20000 == 0) {
                 System.out.print('.');
             }
         }
         long ts_stop = System.currentTimeMillis();
         long dur = ts_stop - ts_start;
-        System.out.println("Creation of " + numValues + " took " + dur + " msec, that is "
-                + (int) (numValues / (dur / 1000.0)) + " entries per second");
+        System.out.println();
+        System.out.println("CREATE;" + numValues + ";took;" + dur + ";msec, that is ;"
+                + (int) (numValues / (dur / 1000.0)) + "; entries per second");
     }
 
     public void dumpEntries() {
 
         CloseableIteratorCollection<String> it = cache.values();
-        StringBuffer sb = new StringBuffer(1000000);
+        StringBuffer sb = new StringBuffer(100*1024*1024);
         long numValues = 0;
         long ts_start = System.currentTimeMillis();
 
         for (String s : it) {
-//            sb.append(s);
+            //System.out.println(s);
+            sb.append(s);
             numValues++;    
-            if (numValues % 10000 == 0) {
+            if (numValues % 20000 == 0) {
                 System.out.print('.');
             }
         }
 
         long ts_stop = System.currentTimeMillis();
         long dur = ts_stop - ts_start;
-        System.out.println("Dumping of " + numValues + " took " + dur + " msec, that is "
-                + (int) (numValues / (dur / 1000.0)) + " entries per second");
+        System.out.println();
+        System.out.println("DUMP;" + numValues + "; values took ;" + dur + "; msec, that is ;"
+                + (int) (numValues / (dur / 1000.0)) + "; entries per second. size;"+sb.length()/1024/1024+";MiB");
     }
 
 
     public static void main(String[] args) throws Exception {
+        String createStr = System.getenv("ENTRIES_CREATE");
+        String dumpStr = System.getenv("ENTRIES_DUMP");
+        boolean create = Boolean.parseBoolean(createStr);
+        boolean dump = Boolean.parseBoolean(dumpStr);
+
+
 
         App a = new App();
         a.connectToCache();
-        a.createEntries();
-        a.dumpEntries();
+        
+        if (create) {
+            a.createEntries();
+        }
+
+        if (dump) {
+            while(true) {
+                a.dumpEntries();    
+            }    
+        }
     }
 }
 
